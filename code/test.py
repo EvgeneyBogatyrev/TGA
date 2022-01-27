@@ -30,7 +30,7 @@ parser.add_argument('--model_name', type=str, default='TGA', help='network name'
 parser.add_argument('--test_dir',type=str,default='//home/ma-user/work/data/Vid4')
 parser.add_argument('--file_test_list',type=str, default ='',help='where record all of image name in dataset.')
 parser.add_argument('--save_test_log', type=str,default='./log/test')
-parser.add_argument('--pretrain', type=str, default='TGA-without-align-dla.pth')
+parser.add_argument('--pretrain', type=str, default='/model/code/TGA-without-align-dla.pth')
 parser.add_argument('--image_out', type=str, default='./out/')
 opt = parser.parse_args()
 gpus_list = range(opt.gpus)
@@ -38,7 +38,7 @@ systime = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')
 print(opt)
 
 def main():
-    sys.stdout = Logger(os.path.join(opt.save_test_log,'test_'+systime+'.txt'))
+    #sys.stdout = Logger(os.path.join(opt.save_test_log,'test_'+systime+'.txt'))
     if not torch.cuda.is_available():
         raise Exception('No Gpu found, please run with gpu')
     else:
@@ -62,29 +62,29 @@ def main():
         net = net.cuda(gpus_list[0])
 
     print('===> Loading test Datasets')
-    PSNR_avg = 0
-    SSIM_avg = 0
-    test_list = ['calendar.txt', 'city.txt', 'foliage.txt', 'walk.txt']
+    #PSNR_avg = 0
+    #SSIM_avg = 0
+    test_list = ['test.txt']
     for test_name in test_list:
         opt.file_test_list = test_name 
         test_set = get_test_set(opt.test_dir, opt.file_test_list, opt.scale, opt.nFrames)
         test_loader = DataLoader(dataset=test_set, num_workers=opt.threads, batch_size=opt.testbatchsize, shuffle=False, pin_memory=pin_memory, drop_last=False)
         print('===> DataLoading Finished')
-        PSNR, SSIM = test(test_loader, net, test_name.split('.')[0])
-        PSNR_avg += PSNR
-        SSIM_avg += SSIM
-    PSNR_avg = PSNR_avg/ len(test_list)
-    SSIM_avg = SSIM_avg/ len(test_list)
-    print('==> Average PSNR = {:.6f}'.format(PSNR_avg))
-    print('==> Average SSIM = {:.6f}'.format(SSIM_avg))
+        test(test_loader, net, test_name.split('.')[0])
+        #PSNR_avg += PSNR
+        #SSIM_avg += SSIM
+    #PSNR_avg = PSNR_avg/ len(test_list)
+    #SSIM_avg = SSIM_avg/ len(test_list)
+    #print('==> Average PSNR = {:.6f}'.format(PSNR_avg))
+    #print('==> Average SSIM = {:.6f}'.format(SSIM_avg))
 
     
 def test(test_loader, net, test_name):
     train_mode = False
     net.eval()
     count = 0
-    avg_psnr = 0
-    avg_ssim = 0
+    #avg_psnr = 0
+    #avg_ssim = 0
     for image_num, data in enumerate(test_loader):
         LR, target, HR = data[0],data[1],data[2]
         with torch.no_grad():
@@ -95,7 +95,6 @@ def test(test_loader, net, test_name):
             prediction = net(LR, HR)
             torch.cuda.synchronize()
             t1 = time.time()
-            print("===> Timer: %.4f sec." % (t1 - t0))
         count += 1
 
         prediction = prediction.squeeze().permute(1,2,0) # [H,W,C]
@@ -104,43 +103,43 @@ def test(test_loader, net, test_name):
         target = target.squeeze().permute(1,2,0) # [H,W,C]
         target = target.cpu().data.clamp(0,1).numpy()[:,:,::-1]# tensor -> numpy, rgb -> bgr
 
-        # save image 
-        save_img(prediction[8:-8,8:-8,:],test_name,image_num, False)
+        # save image
+        save_img(prediction,test_name,image_num, False)
 
         # get Y channel 
-        prediction_Y = bgr2ycbcr(prediction)
-        target_Y = bgr2ycbcr(target)
+        #prediction_Y = bgr2ycbcr(prediction)
+        #target_Y = bgr2ycbcr(target)
         #prediction_Y = prediction
         #target_Y = target
         # crop_border
-        prediction_Y *= 255
-        target_Y *= 255
-        prediction_Y, target_Y = crop_border(prediction_Y, target_Y, 8)
+        #prediction_Y *= 255
+        #target_Y *= 255
+        #prediction_Y, target_Y = crop_border(prediction_Y, target_Y, 8)
         # calculate PSNR and SSIM
-        PSNR = calculate_psnr(prediction_Y, target_Y)
-        SSIM = calculate_ssim(prediction_Y, target_Y)
-        t1 = time.time()
-        print("===> Processing: %s || Timer: %.4f sec." % (str(count), (t1 - t0)))
-        print('PSNR: {:.6f} dB, \tSSIM: {:.6f}'.format(PSNR, SSIM))
-        avg_psnr += PSNR
-        avg_ssim += SSIM
-    print('===>{} PSNR = {}'.format(test_name, avg_psnr/(len(test_loader))))
-    print('===>{} SSIM = {}'.format(test_name, avg_ssim/(len(test_loader))))
-    return (avg_psnr/(len(test_loader)), avg_ssim/(len(test_loader)))
+        #PSNR = calculate_psnr(prediction_Y, target_Y)
+        #SSIM = calculate_ssim(prediction_Y, target_Y)
+        #t1 = time.time()
+        #print("===> Processing: %s || Timer: %.4f sec." % (str(count), (t1 - t0)))
+        #print('PSNR: {:.6f} dB, \tSSIM: {:.6f}'.format(PSNR, SSIM))
+        #avg_psnr += PSNR
+        #avg_ssim += SSIM
+    #print('===>{} PSNR = {}'.format(test_name, avg_psnr/(len(test_loader))))
+    #print('===>{} SSIM = {}'.format(test_name, avg_ssim/(len(test_loader))))
+    #return (avg_psnr/(len(test_loader)), avg_ssim/(len(test_loader)))
 
 def save_img(prediction,test_name,image_num, att):
     #prediction: bgr [0,1]
     if att == True:
-        save_dir = os.path.join(opt.image_out, systime)    
+        save_dir = os.path.join(opt.image_out)    
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-        image_dir = os.path.join(save_dir, '{}_{:03}'.format(test_name, image_num+1) + '.png')
+        image_dir = os.path.join(save_dir, 'frame{:04}'.format(image_num+1) + '.png')
         cv2.imwrite(image_dir, prediction, [cv2.IMWRITE_PNG_COMPRESSION, 0])
     else:
-        save_dir = os.path.join(opt.image_out, systime)
+        save_dir = os.path.join(opt.image_out)
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-        image_dir = os.path.join(save_dir, '{}_{:03}'.format(test_name, image_num+1) + '.png')
+        image_dir = os.path.join(save_dir, 'frame{:04}'.format(image_num+1) + '.png')
         cv2.imwrite(image_dir, prediction*255, [cv2.IMWRITE_PNG_COMPRESSION, 0])
 def bgr2ycbcr(img, only_y=True):
     '''same as matlab rgb2ycbcr
